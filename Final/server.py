@@ -28,8 +28,9 @@ def handle_client(client_socket):
             objectx=client_socket.recv(message_length)
             while True:
                 modify_list.acquire()
-                if(len(online_servers)>0):
-                    server_socket=online_servers.pop(0)
+                if(len(online_servers)>1):
+                    server_socket1=online_servers.pop(0)
+		    server_socket2=online_servers.pop(0)
                     modify_list.release()
                     break
                 else:
@@ -38,20 +39,22 @@ def handle_client(client_socket):
                 time.sleep(0.5)
             
             objectx_length=f"{len(objectx):<{HEADER_LENGTH}}".encode("utf-8")
-            server_socket.send(objectx_length+objectx)
-            print("Sent")
-            objectx_length=int(server_socket.recv(HEADER_LENGTH).strip().decode("utf-8"))
-            objectx=server_socket.recv(objectx_length)
+            server_socket1.send(objectx_length+objectx)
+            print("Sent to Server 1")
+            objectx_length=int(server_socket1.recv(HEADER_LENGTH).strip().decode("utf-8"))
+            objectx=server_socket1.recv(objectx_length)
             print("Received")
             objectx_length=f"{len(objectx):<{HEADER_LENGTH}}".encode("utf-8")
             client_socket.send(objectx_length+objectx)
             print("Sent to Client")
             
             modify_list.acquire()
-            online_servers.append(server_socket)
+            online_servers.append(server_socket1)
+	    online_servers.append(server_socket2)
             modify_list.release()
             
-            print("Reavailable Server")
+            print("Reavailable Servers")
+
         except IOError as e:
             if e.errno!=errno.EAGAIN and e.errno!=errno.EWOULDBLOCK:
                 print('READING ERROR , Client Must have Ended the Connection',str(e))
