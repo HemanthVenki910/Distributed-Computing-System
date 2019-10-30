@@ -5,6 +5,7 @@ from threading import Thread
 import errno
 import sys
 import time 
+import copy
 
 name=socket.gethostname()
 ip=socket.gethostbyname(name)
@@ -28,8 +29,9 @@ def handle_client(client_socket):
             objectx=client_socket.recv(message_length)
             while True:
                 modify_list.acquire()
-                if(len(online_servers)>0):
-                    server_socket=online_servers.pop(0)
+                if(len(online_servers)>1):
+                    server_socket1=online_servers.pop(0)
+                    server_socket2=online_servers.pop(0)
                     modify_list.release()
                     break
                 else:
@@ -37,18 +39,59 @@ def handle_client(client_socket):
                 modify_list.release()
                 time.sleep(0.5)
             
+            object_decode=pickle.loads(objectx)
+            object_decode1=copy.deepcopy(object_decode)
+            object_decode2=copy.deepcopy(object_decode)
+            print(object_decode)
+            indexx=len(object_decode.data)
+            
+            object_decode1.data=object_decode.data[0:int(indexx/2)]
+            object_decode2.data=object_decode.data[int(indexx/2):indexx]
+            
+            print(object_decode1.data,object_decode1)
+            print(object_decode2.data,object_decode2)
+            
+            objectx1=pickle.dumps(object_decode1)
+            objectx2=pickle.dumps(object_decode2)
+            
             objectx_length=f"{len(objectx):<{HEADER_LENGTH}}".encode("utf-8")
-            server_socket.send(objectx_length+objectx)
+            
+            objectx1_length=f"{len(objectx1):<{HEADER_LENGTH}}".encode("utf-8")
+            objectx2_length=f"{len(objectx2):<{HEADER_LENGTH}}".encode("utf-8")
+            
+            server_socket1.send(objectx1_length+objectx1)
+            server_socket2.send(objectx2_length+objectx2)
             print("Sent")
-            objectx_length=int(server_socket.recv(HEADER_LENGTH).strip().decode("utf-8"))
-            objectx=server_socket.recv(objectx_length)
+            
+            
+            objectx1_length=int(server_socket1.recv(HEADER_LENGTH).strip().decode("utf-8"))
+            objectx1=server_socket1.recv(objectx1_length)
+            objectx1=pickle.loads(objectx1)
+            print("Here")
+            print(objectx1)
+            
+            objectx2_length=int(server_socket2.recv(HEADER_LENGTH).strip().decode("utf-8"))
+            print("Here1")
+            print(objectx2_length)
+            objectx2=server_socket2.recv(objectx2_length)
+            print("Here2")
+            objectx2=pickle.loads(objectx2)
             print("Received")
+            
+            #Combine Function 
+            object_decode.data=[]
+            object_decode.data.append(objectx1.processed_data)
+            object_decode.data.append(objectx2.processed_data)
+            
+            object_decode.processed_data=object_decode.function(object_decode.data)
+            objectx=pickle.dumps(object_decode)
             objectx_length=f"{len(objectx):<{HEADER_LENGTH}}".encode("utf-8")
             client_socket.send(objectx_length+objectx)
             print("Sent to Client")
             
             modify_list.acquire()
-            online_servers.append(server_socket)
+            online_servers.append(server_socket1)
+            online_servers.append(server_socket2)
             modify_list.release()
             
             print("Reavailable Server")
